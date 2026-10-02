@@ -9,7 +9,7 @@ async function readFile() {
         let data = await fs.readFile(pathToDB, 'utf-8');
         return JSON.parse(data);
     } catch (err) {
-        console.log(err);
+        throw err;
     }
 }
 
@@ -25,7 +25,7 @@ async function writeFile(data) {
     try {
         await fs.writeFile(pathToDB, JSON.stringify(data, null, 2), 'utf-8');
     } catch (err) {
-        console.log(err);
+        throw err;
     }
 }
 // We must export this so Server.js can use it

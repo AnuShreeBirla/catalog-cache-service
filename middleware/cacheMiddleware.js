@@ -1,36 +1,42 @@
 const cache = {};
-const ttlInMs = 60*1000;
-async function checkCache(req,res,next){
-    let key = req.originalUrl;
-    let value = cache[key];
+const ttlInMs = 60 * 1000;
+
+function checkCache(req, res, next) {
+    const key = req.originalUrl;
+    const value = cache[key];
     if(value){
-        let now = Date.now();
-        let timeElapsed = now - value.createdAt;
-        if(timeElapsed<ttlInMs){
-            console.log(`[CACHE HIT] Serving from cache for: ${key}`);
-            res.set('X-Cache','HIT');
+        const timeElapsed = Date.now() - value.createdAt;
+        if(timeElapsed < ttlInMs){
+            res.set('X-Cache', 'HIT');
             return res.json(value.value);
         }
-        else {
-            console.log(`[CACHE EXPIRED] Entry for ${key} is older than 1 minute. Evicting...`);
-            delete cache[key]; // Remove the stale entry from memory
-        }
+        delete cache[key];
     }
 
-    console.log(`[CACHE MISS] Fetching fresh data for: ${key}`);
+    res.set('X-Cache', 'MISS');
+    res.locals.cacheKey = key;
     next();
 }
 
+function storeCache(key, value) {
+    cache[key] = { value, createdAt: Date.now() };
+}
+
 function clearCache() {
-    console.log('[CACHE INVALIDATED] Wiping all cache entries due to data mutation!');
-    // Delete every key in the cache object
-    for (let key in cache) {
-        delete cache[key];
-    }
+    for (const key of Object.keys(cache)) delete cache[key];
+}
+
+function invalidateCacheOnSuccess(req, res, next) {
+    res.once('finish', () => {
+        if (res.statusCode >= 200 && res.statusCode < 300) clearCache();
+    });
+    next();
 }
 
 module.exports = {
     cache,
     checkCache,
-    clearCache
-}
+    storeCache,
+    clearCache,
+    invalidateCacheOnSuccess
+};
